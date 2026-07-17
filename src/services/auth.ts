@@ -134,10 +134,31 @@ export async function registerUser(email: string, password: string, name: string
 export async function loginUser(email: string, password: string): Promise<UserProfile> {
   if (isLocalMode()) {
     const users = JSON.parse(localStorage.getItem('local_users') || '[]');
-    const profile = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+    let profile = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
     
     if (!profile) {
-      throw new Error('User profile does not exist. (Sandbox Mode: Create or verify email thilina2003dilruk@gmail.com / 123456)');
+      const displayName = email.split('@')[0] || 'User';
+      const now = new Date().toISOString();
+      profile = {
+        uid: `local-user-${Date.now()}`,
+        name: displayName,
+        email: email,
+        department: 'General',
+        role: 'User' as UserRole,
+        status: 'Active',
+        phone: '',
+        createdAt: now,
+        updatedAt: now
+      };
+      users.push(profile);
+      localStorage.setItem('local_users', JSON.stringify(users));
+      
+      // Seed initial sandbox lists
+      try {
+        await seedInitialData();
+      } catch (err) {
+        console.error('Failed to seed database:', err);
+      }
     }
 
     if (profile.status === 'Inactive') {
@@ -165,9 +186,23 @@ export async function loginUser(email: string, password: string): Promise<UserPr
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    const profile = await getUserProfile(user.uid);
+    let profile = await getUserProfile(user.uid);
     if (!profile) {
-      throw new Error('User profile does not exist in Firestore. Contact an Admin.');
+      const displayName = user.displayName || user.email?.split('@')[0] || 'User';
+      const newProfile: Partial<UserProfile> = {
+        name: displayName,
+        email: user.email || email,
+        department: 'General',
+        role: 'User' as UserRole,
+        status: 'Active',
+        phone: ''
+      };
+      await createUserProfile(user.uid, newProfile);
+      profile = await getUserProfile(user.uid);
+    }
+
+    if (!profile) {
+      throw new Error('Failed to retrieve or create user profile in Firestore.');
     }
 
     if (profile.status === 'Inactive') {
@@ -284,7 +319,20 @@ export function subscribeToAuthChanges(callback: (user: User | null, profile: Us
     }
 
     if (user) {
-      const profile = await getUserProfile(user.uid);
+      let profile = await getUserProfile(user.uid);
+      if (!profile) {
+        const displayName = user.displayName || user.email?.split('@')[0] || 'User';
+        const newProfile: Partial<UserProfile> = {
+          name: displayName,
+          email: user.email || '',
+          department: 'General',
+          role: 'User' as UserRole,
+          status: 'Active',
+          phone: ''
+        };
+        await createUserProfile(user.uid, newProfile);
+        profile = await getUserProfile(user.uid);
+      }
       callback(user, profile);
     } else {
       callback(null, null);
