@@ -1,0 +1,166 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdminOrAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+        getUserData().role == 'Super Admin' || getUserData().role == 'Admin'
+      );
+    }
+
+    function isProductionManager() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'Production Manager';
+    }
+
+    function isTechnician() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'Technician';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        incoming().uid == userId &&
+        incoming().role in ['Super Admin', 'Admin', 'Production Manager', 'Technician', 'Department User'] &&
+        incoming().status == 'Active' &&
+        incoming().name is string && incoming().name.size() <= 100 &&
+        incoming().email is string && incoming().email.size() <= 100
+      );
+      allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdminOrAdmin()) && (
+        isSuperAdminOrAdmin() || (
+          incoming().role == existing().role &&
+          incoming().status == existing().status &&
+          incoming().uid == existing().uid &&
+          incoming().email == existing().email
+        )
+      );
+      allow delete: if isSuperAdminOrAdmin();
+    }
+
+    // --- REQUESTS COLLECTION ---
+    match /requests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        incoming().createdBy == request.auth.uid &&
+        incoming().status == 'Pending' &&
+        incoming().hodStatus == 'Pending' &&
+        incoming().prodStatus == 'Pending' &&
+        incoming().createdAt is string && incoming().createdAt.size() <= 50 &&
+        incoming().updatedAt is string && incoming().updatedAt.size() <= 50 &&
+        incoming().title is string && incoming().title.size() <= 200 &&
+        incoming().description is string && incoming().description.size() <= 3000
+      );
+      allow update: if isSignedIn() && (
+        // Key Immutability Enforcements
+        incoming().requestNo == existing().requestNo &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdByEmail == existing().createdByEmail &&
+        incoming().createdByName == existing().createdByName &&
+        incoming().createdAt == existing().createdAt &&
+        
+        (
+          // Administrative Bypass
+          isSuperAdminOrAdmin() ||
+          
+          // Production Manager / Admin permissions
+          (isProductionManager() && (
+            incoming().diff(existing()).affectedKeys().hasAny(['prodStatus', 'prodComments', 'prodApprovedBy', 'prodApprovedAt', 'status', 'assignedTo', 'assignedToName', 'assignedToEmail', 'updatedAt'])
+          )) ||
+          
+          // HOD Approval actions (handled by Department Users or Production Managers)
+          (getUserData().role in ['Department User', 'Production Manager'] && (
+            incoming().diff(existing()).affectedKeys().hasAny(['hodStatus', 'hodComments', 'hodApprovedBy', 'hodApprovedAt', 'status', 'updatedAt'])
+          )) ||
+
+          // Technician specific status transitions
+          (isTechnician() && (
+            existing().assignedTo == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasAny(['technicianComments', 'status', 'completedAt', 'updatedAt'])
+          )) ||
+
+          // Creator Cancel or Edit prior to full processing
+          (existing().createdBy == request.auth.uid && (
+            (existing().status == 'Pending' && incoming().diff(existing()).affectedKeys().hasAny(['status', 'updatedAt'])) ||
+            (existing().status == 'Pending' && (
+              incoming().diff(existing()).affectedKeys().hasAny(['title', 'description', 'priority', 'machine', 'service', 'timeNeeded', 'equipment', 'tools', 'updatedAt'])
+            ))
+          ))
+        )
+      );
+      allow delete: if isSuperAdminOrAdmin();
+    }
+
+    // --- DEPARTMENTS COLLECTION ---
+    match /departments/{deptId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdminOrAdmin() || isProductionManager();
+    }
+
+    // --- MACHINES COLLECTION ---
+    match /machines/{machineId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdminOrAdmin() || isProductionManager();
+    }
+
+    // --- NOTIFICATIONS COLLECTION ---
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // --- LOGS COLLECTIONS ---
+    match /admin_logs/{logId} {
+      allow read: if isSuperAdminOrAdmin();
+      allow create: if isSignedIn();
+    }
+
+    match /user_logs/{logId} {
+      allow read: if isSuperAdminOrAdmin() || isProductionManager();
+      allow create: if isSignedIn();
+    }
+
+    match /login_logs/{logId} {
+      allow read: if isSuperAdminOrAdmin();
+      allow create: if true; // Let the authentication engine safely write failed/successful login events
+    }
+
+    match /audit_trail/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+    }
+
+    // --- SETTINGS COLLECTION ---
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdminOrAdmin();
+    }
+  }
+}

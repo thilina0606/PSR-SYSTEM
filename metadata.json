@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Production Service Request System",
+  "description": "An enterprise-grade production service request and maintenance management system built on top of Cloud Firestore and Firebase Authentication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

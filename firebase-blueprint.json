@@ -1,0 +1,227 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Enterprise user accounts with specific RBAC roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string", "maxLength": 30 },
+        "department": { "type": "string", "maxLength": 50 },
+        "role": { "type": "string", "enum": ["Super Admin", "Admin", "Production Manager", "Technician", "Department User"] },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "department", "role", "status", "createdAt", "updatedAt"]
+    },
+    "ServiceRequest": {
+      "title": "Service Request",
+      "description": "Production and maintenance service request tickets.",
+      "type": "object",
+      "properties": {
+        "requestNo": { "type": "string", "pattern": "^REQ-\\d{4}-\\d{4}$" },
+        "title": { "type": "string", "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "department": { "type": "string", "maxLength": 50 },
+        "machine": { "type": "string", "maxLength": 100 },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Urgent"] },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Assigned", "In Progress", "Completed", "Rejected", "Cancelled"] },
+        "requester": { "type": "string", "maxLength": 100 },
+        "contact": { "type": "string", "maxLength": 30 },
+        "location": { "type": "string", "maxLength": 100 },
+        "service": { "type": "string", "maxLength": 150 },
+        "timeNeeded": { "type": "string", "maxLength": 50 },
+        "equipment": { "type": "string", "maxLength": 100 },
+        "tools": { "type": "string", "maxLength": 100 },
+        "requestedDate": { "type": "string" },
+        "requestedTime": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdByEmail": { "type": "string", "format": "email" },
+        "createdByName": { "type": "string", "maxLength": 100 },
+        "assignedTo": { "type": "string" },
+        "assignedToName": { "type": "string", "maxLength": 100 },
+        "assignedToEmail": { "type": "string" },
+        "hodStatus": { "type": "string", "enum": ["Pending", "Approved", "Rejected"] },
+        "hodComments": { "type": "string", "maxLength": 1000 },
+        "hodApprovedBy": { "type": "string" },
+        "hodApprovedAt": { "type": "string" },
+        "prodStatus": { "type": "string", "enum": ["Pending", "Approved", "Rejected"] },
+        "prodComments": { "type": "string", "maxLength": 1000 },
+        "prodApprovedBy": { "type": "string" },
+        "prodApprovedAt": { "type": "string" },
+        "technicianComments": { "type": "string", "maxLength": 1000 },
+        "attachments": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "requestNo", "title", "description", "department", "machine", "priority", "status",
+        "requester", "contact", "location", "service", "timeNeeded", "createdBy", "createdByEmail",
+        "createdByName", "assignedTo", "assignedToName", "assignedToEmail", "hodStatus", "hodComments",
+        "hodApprovedBy", "hodApprovedAt", "prodStatus", "prodComments", "prodApprovedBy", "prodApprovedAt",
+        "attachments", "createdAt", "updatedAt"
+      ]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Company operational departments.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "code": { "type": "string", "maxLength": 10 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "code", "createdAt"]
+    },
+    "Machine": {
+      "title": "Machine",
+      "description": "Factory manufacturing machinery and assets.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "code": { "type": "string", "maxLength": 20 },
+        "department": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["Active", "Maintenance", "Inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "code", "department", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User in-app notifications.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "message": { "type": "string", "maxLength": 500 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "requestNo": { "type": "string" }
+      },
+      "required": ["uid", "message", "read", "createdAt"]
+    },
+    "AdminLog": {
+      "title": "Admin Log",
+      "description": "Audit trails for administrative operations.",
+      "type": "object",
+      "properties": {
+        "time": { "type": "string", "format": "date-time" },
+        "adminName": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "role": { "type": "string" },
+        "action": { "type": "string" },
+        "requestNo": { "type": "string" },
+        "oldValue": { "type": "string" },
+        "newValue": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "browser": { "type": "string" },
+        "device": { "type": "string" },
+        "os": { "type": "string" }
+      },
+      "required": ["time", "adminName", "adminEmail", "role", "action", "requestNo", "oldValue", "newValue"]
+    },
+    "UserLog": {
+      "title": "User Log",
+      "description": "Activity logs for general user actions.",
+      "type": "object",
+      "properties": {
+        "time": { "type": "string", "format": "date-time" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "role": { "type": "string" },
+        "action": { "type": "string" },
+        "requestNo": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["time", "userEmail", "userName", "role", "action"]
+    },
+    "LoginLog": {
+      "title": "Login Log",
+      "description": "Logs for application authentications.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "browser": { "type": "string" },
+        "device": { "type": "string" },
+        "os": { "type": "string" },
+        "status": { "type": "string", "enum": ["Success", "Failed"] }
+      },
+      "required": ["date", "time", "email", "role", "status"]
+    },
+    "AuditTrail": {
+      "title": "Audit Trail",
+      "description": "Field-level change tracking logs for ServiceRequests.",
+      "type": "object",
+      "properties": {
+        "requestNo": { "type": "string" },
+        "fieldChanged": { "type": "string" },
+        "oldValue": { "type": "string" },
+        "newValue": { "type": "string" },
+        "changedBy": { "type": "string" },
+        "changedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["requestNo", "fieldChanged", "oldValue", "newValue", "changedBy", "changedAt"]
+    },
+    "SystemSettings": {
+      "title": "System Settings",
+      "description": "Global enterprise-wide application controls.",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string", "maxLength": 100 },
+        "companyName": { "type": "string", "maxLength": 150 },
+        "allowSelfRegistration": { "type": "boolean" },
+        "requireHODApproval": { "type": "boolean" },
+        "maintenanceEmail": { "type": "string", "format": "email" }
+      },
+      "required": ["appName", "companyName", "allowSelfRegistration", "requireHODApproval", "maintenanceEmail"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Collection of user profiles keyed by their Firebase Auth UID."
+    },
+    "requests": {
+      "schema": { "$ref": "#/entities/ServiceRequest" },
+      "description": "Service requests and work tickets generated by users."
+    },
+    "departments": {
+      "schema": { "$ref": "#/entities/Department" },
+      "description": "Organization departments list."
+    },
+    "machines": {
+      "schema": { "$ref": "#/entities/Machine" },
+      "description": "Machinery list managed by the system."
+    },
+    "notifications": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "In-app alerts and announcements."
+    },
+    "admin_logs": {
+      "schema": { "$ref": "#/entities/AdminLog" },
+      "description": "Administrative audit trail logs."
+    },
+    "user_logs": {
+      "schema": { "$ref": "#/entities/UserLog" },
+      "description": "User activity logging."
+    },
+    "login_logs": {
+      "schema": { "$ref": "#/entities/LoginLog" },
+      "description": "Authentication event logs."
+    },
+    "audit_trail": {
+      "schema": { "$ref": "#/entities/AuditTrail" },
+      "description": "Service request field-level changes audit."
+    },
+    "settings": {
+      "schema": { "$ref": "#/entities/SystemSettings" },
+      "description": "Global config documents."
+    }
+  }
+}
