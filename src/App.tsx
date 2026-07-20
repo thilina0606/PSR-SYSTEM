@@ -20,6 +20,7 @@ import { Reports } from './pages/Reports';
 import { Logs } from './pages/Logs';
 import { Settings } from './pages/Settings';
 import { Profile } from './pages/Profile';
+import { CreateRequest } from './pages/CreateRequest';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -63,6 +64,8 @@ export default function App() {
         // Set the initial default view based on Role setting
         if (userProfile.role === 'Super Admin' || userProfile.role === 'Admin' || userProfile.role === 'Production Manager') {
           setCurrentTab('dashboard');
+        } else if (userProfile.role === 'User') {
+          setCurrentTab('create-request');
         } else {
           setCurrentTab('requests');
         }
@@ -80,6 +83,8 @@ export default function App() {
       switch (tab) {
         case 'dashboard':
           return role === 'Production Manager';
+        case 'create-request':
+          return role === 'User';
         case 'requests':
           return true;
         case 'departments':
@@ -95,7 +100,11 @@ export default function App() {
 
     if (!isTabAllowed(currentTab, profile.role)) {
       console.warn(`Access denied to tab '${currentTab}' for role '${profile.role}'. Redirecting...`);
-      setCurrentTab('requests');
+      if (profile.role === 'User') {
+        setCurrentTab('create-request');
+      } else {
+        setCurrentTab('requests');
+      }
     }
   }, [currentTab, profile]);
 
@@ -219,6 +228,13 @@ export default function App() {
               requests={requests}
               profile={profile}
               users={usersList}
+            />
+          )}
+
+          {currentTab === 'create-request' && (
+            <CreateRequest
+              profile={profile}
+              onSuccess={() => setCurrentTab('requests')}
             />
           )}
 

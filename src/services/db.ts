@@ -337,6 +337,7 @@ export async function submitRequest(request: Partial<ServiceRequest>, user: User
   const fullRequest: ServiceRequest = {
     requestNo,
     title: request.title || request.service || 'Service Request',
+    category: request.category || '',
     description: request.description || '',
     department: request.department || user.department,
     machine: request.machine || 'General',

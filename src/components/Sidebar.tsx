@@ -11,7 +11,8 @@ import {
   LogOut,
   Menu,
   X,
-  Wrench
+  Wrench,
+  Plus
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -40,6 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     switch (tab) {
       case 'dashboard':
         return userRole === 'Production Manager';
+      case 'create-request':
+        return userRole === 'User';
       case 'requests':
         return true; // Everyone can access requests, but the internal view/submit page options adapt by role
       case 'users':
@@ -61,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'create-request', label: 'New Request', icon: Plus },
     { id: 'requests', label: 'Service Requests', icon: ClipboardList },
     { id: 'users', label: 'User Directory', icon: Users },
     { id: 'departments', label: 'Assets & Depts', icon: Building2 },

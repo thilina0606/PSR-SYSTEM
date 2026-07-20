@@ -53,10 +53,12 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
   // New Request Form State
   const [formData, setFormData] = useState({
     title: '',
+    category: '',
     description: '',
     department: '',
     machine: 'General',
     priority: 'Medium' as ServiceRequest['priority'],
+    attachments: [] as string[],
     requester: '',
     contact: '',
     location: '',
@@ -151,7 +153,7 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
       isVisible = true; // Can see everything
     } else if (profile.role === 'Technician') {
       isVisible = req.assignedTo === profile.uid; // Only their assigned jobs
-    } else if (profile.role === 'Department User') {
+    } else if (profile.role === 'Department User' || profile.role === 'User') {
       isVisible = req.createdBy === profile.uid || req.createdByEmail === profile.email; // Only requests they submitted
     }
 
@@ -180,7 +182,7 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
     setFormSuccess('');
 
     try {
-      if (!formData.department || !formData.service || !formData.description) {
+      if (!formData.department || !formData.service || !formData.description || !formData.category) {
         throw new Error('Please fill in all required fields marked with an asterisk (*).');
       }
       const requestNo = await submitRequest(formData, profile);
@@ -189,10 +191,12 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
       setFormData(prev => ({
         ...prev,
         title: '',
+        category: '',
         description: '',
         service: '',
         equipment: '',
         tools: '',
+        attachments: [],
       }));
       setTimeout(() => {
         setActiveSubTab('list');
@@ -408,7 +412,7 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
           >
             All Requests ({filteredRequests.length})
           </button>
-          {profile.role === 'Department User' || profile.role === 'Super Admin' || profile.role === 'Admin' ? (
+          {profile.role === 'User' ? (
             <button
               onClick={() => setActiveSubTab('create')}
               className={`px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all ${
@@ -474,6 +478,27 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
                   className="block w-full px-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900 focus:bg-white text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none"
                   placeholder="e.g. Injection Molding M1 motor overheating"
                 />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="block w-full px-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900 focus:bg-white text-sm text-slate-900 dark:text-white outline-none appearance-none"
+                >
+                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Select Category...</option>
+                  <option value="Electrical" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Electrical</option>
+                  <option value="Mechanical" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Mechanical</option>
+                  <option value="Software/IT" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Software / IT</option>
+                  <option value="Civil" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Civil / Infrastructure</option>
+                  <option value="Safety" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Safety / General</option>
+                  <option value="Other" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Other</option>
+                </select>
               </div>
 
               {/* Department */}
@@ -609,6 +634,58 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
                   className="block w-full px-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900 focus:bg-white text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none"
                   placeholder="e.g. Voltmeter, Allen keys"
                 />
+              </div>
+
+              {/* Attachments */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+                  Attachments (Images or Documents)
+                </label>
+                <div className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors relative cursor-pointer">
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      files.forEach((file: any) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          if (typeof reader.result === 'string') {
+                            setFormData(prev => ({
+                              ...prev,
+                              attachments: [...prev.attachments, reader.result as string]
+                            }));
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      });
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <Paperclip className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs font-medium text-slate-500">Drag and drop files here, or click to browse</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Supports images, PDF, and text files</p>
+                </div>
+                {formData.attachments && formData.attachments.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {formData.attachments.map((fileData, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 py-1.5 px-3 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                        <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="truncate max-w-[120px]">Attachment #{i+1}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({
+                            ...prev,
+                            attachments: prev.attachments.filter((_, idx) => idx !== i)
+                          }))}
+                          className="text-slate-400 hover:text-red-500 ml-1"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -783,6 +860,7 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
                   <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
                     <p><span className="font-semibold text-slate-500">Location:</span> {selectedRequest.location}</p>
                     <p><span className="font-semibold text-slate-500">Service Required:</span> {selectedRequest.service}</p>
+                    <p><span className="font-semibold text-slate-500">Category:</span> {selectedRequest.category || 'N/A'}</p>
                     <p><span className="font-semibold text-slate-500">Priority:</span> {selectedRequest.priority}</p>
                     <p><span className="font-semibold text-slate-500">Est. Time Needed:</span> {selectedRequest.timeNeeded}</p>
                   </div>
@@ -806,6 +884,28 @@ export const Requests: React.FC<RequestsProps> = ({ requests, profile, users }) 
                   {selectedRequest.description}
                 </p>
               </div>
+
+              {/* Attachments Section */}
+              {selectedRequest.attachments && selectedRequest.attachments.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Attachments</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selectedRequest.attachments.map((fileData, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950/20">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Paperclip className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                          <span className="text-xs text-slate-600 dark:text-slate-300 truncate font-mono">Attachment #{idx + 1}</span>
+                        </div>
+                        {fileData.startsWith('data:image/') ? (
+                          <a href={fileData} download={`attachment_${idx + 1}.png`} className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold">Download Image</a>
+                        ) : (
+                          <a href={fileData} download={`attachment_${idx + 1}`} className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold">Download File</a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Action Panels depending on User Role & Request Status */}
               {profile.role === 'Super Admin' || profile.role === 'Admin' || profile.role === 'Production Manager' ? (

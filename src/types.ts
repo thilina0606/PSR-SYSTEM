@@ -18,6 +18,7 @@ export interface ServiceRequest {
   id?: string; // Firestore document ID
   requestNo: string;
   title: string;
+  category?: string;
   description: string;
   department: string;
   machine: string;
