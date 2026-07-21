@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Wrench,
-  Plus
+  Plus,
+  Bell
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -38,10 +39,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isAllowed = (tab: string): boolean => {
     const roleLower = userRole?.toLowerCase() || '';
     if (roleLower === 'admin' || roleLower === 'super admin') {
-      return ['dashboard', 'requests', 'users', 'reports', 'profile'].includes(tab);
+      return ['dashboard', 'requests', 'users', 'reports', 'notifications', 'profile'].includes(tab);
     }
     if (roleLower === 'user') {
-      return ['dashboard', 'create-request', 'requests', 'profile'].includes(tab);
+      return ['dashboard', 'create-request', 'requests', 'notifications', 'profile'].includes(tab);
     }
     return false;
   };
@@ -52,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'requests', label: userRole?.toLowerCase() === 'user' ? 'My Requests' : 'All Requests', icon: ClipboardList },
     { id: 'users', label: 'User Directory', icon: Users },
     { id: 'reports', label: 'Reports', icon: FileBarChart },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'profile', label: 'My Profile', icon: User },
   ];
 

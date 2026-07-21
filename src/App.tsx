@@ -15,12 +15,10 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Requests } from './pages/Requests';
 import { Users } from './pages/Users';
-import { Departments } from './pages/Departments';
 import { Reports } from './pages/Reports';
-import { Logs } from './pages/Logs';
-import { Settings } from './pages/Settings';
 import { Profile } from './pages/Profile';
 import { CreateRequest } from './pages/CreateRequest';
+import { Notifications } from './pages/Notifications';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -82,10 +80,10 @@ export default function App() {
     const isTabAllowed = (tab: string, role: string): boolean => {
       const roleLower = role?.toLowerCase() || '';
       if (roleLower === 'super admin' || roleLower === 'admin') {
-        return ['dashboard', 'requests', 'users', 'reports', 'profile'].includes(tab);
+        return ['dashboard', 'requests', 'users', 'reports', 'notifications', 'profile'].includes(tab);
       }
       if (roleLower === 'user') {
-        return ['dashboard', 'create-request', 'requests', 'profile'].includes(tab);
+        return ['dashboard', 'create-request', 'requests', 'notifications', 'profile'].includes(tab);
       }
       return false;
     };
@@ -240,20 +238,15 @@ export default function App() {
             />
           )}
 
-          {currentTab === 'departments' && (
-            <Departments profile={profile} />
-          )}
-
           {currentTab === 'reports' && (
             <Reports requests={requests} />
           )}
 
-          {currentTab === 'logs' && (
-            <Logs />
-          )}
-
-          {currentTab === 'settings' && (
-            <Settings profile={profile} />
+          {currentTab === 'notifications' && (
+            <Notifications
+              profile={profile}
+              users={usersList}
+            />
           )}
 
           {currentTab === 'profile' && (
