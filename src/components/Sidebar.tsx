@@ -19,7 +19,7 @@ import { UserRole } from '../types';
 interface SidebarProps {
   currentTab: string;
   setTab: (tab: string) => void;
-  userRole: UserRole;
+  userRole?: UserRole | null | string;
   userName: string;
   onLogout: () => void;
   isOpen: boolean;
@@ -36,41 +36,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsOpen
 }) => {
   const isAllowed = (tab: string): boolean => {
-    if (userRole === 'Super Admin' || userRole === 'Admin') return true;
-
-    switch (tab) {
-      case 'dashboard':
-        return userRole === 'Production Manager';
-      case 'create-request':
-        return userRole === 'User';
-      case 'requests':
-        return true; // Everyone can access requests, but the internal view/submit page options adapt by role
-      case 'users':
-        return false;
-      case 'departments':
-        return userRole === 'Production Manager';
-      case 'reports':
-        return userRole === 'Production Manager';
-      case 'logs':
-        return false;
-      case 'settings':
-        return false;
-      case 'profile':
-        return true;
-      default:
-        return false;
+    const roleLower = userRole?.toLowerCase() || '';
+    if (roleLower === 'admin' || roleLower === 'super admin') {
+      return ['dashboard', 'requests', 'users', 'reports', 'profile'].includes(tab);
     }
+    if (roleLower === 'user') {
+      return ['dashboard', 'create-request', 'requests', 'profile'].includes(tab);
+    }
+    return false;
   };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'create-request', label: 'New Request', icon: Plus },
-    { id: 'requests', label: 'Service Requests', icon: ClipboardList },
+    { id: 'requests', label: userRole?.toLowerCase() === 'user' ? 'My Requests' : 'All Requests', icon: ClipboardList },
     { id: 'users', label: 'User Directory', icon: Users },
-    { id: 'departments', label: 'Assets & Depts', icon: Building2 },
-    { id: 'reports', label: 'Reports & Export', icon: FileBarChart },
-    { id: 'logs', label: 'System Logs', icon: History },
-    { id: 'settings', label: 'App Settings', icon: Settings },
+    { id: 'reports', label: 'Reports', icon: FileBarChart },
     { id: 'profile', label: 'My Profile', icon: User },
   ];
 
@@ -110,27 +91,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Nav Links */}
           <nav className="p-4 space-y-1">
-            {filteredItems.map(item => {
-              const IconComp = item.icon;
-              const isActive = currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setTab(item.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150 ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10'
-                      : 'hover:bg-slate-800/60 hover:text-white text-slate-400'
-                  }`}
-                >
-                  <IconComp className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
-                  {item.label}
-                </button>
-              );
-            })}
+            {!userRole ? (
+              <div className="flex items-center gap-3 px-4 py-3 text-slate-500 text-sm font-medium">
+                <div className="w-4 h-4 rounded-full border-2 border-slate-500 border-t-transparent animate-spin" />
+                <span>Loading navigation...</span>
+              </div>
+            ) : (
+              filteredItems.map(item => {
+                const IconComp = item.icon;
+                const isActive = currentTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setTab(item.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150 ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10'
+                        : 'hover:bg-slate-800/60 hover:text-white text-slate-400'
+                    }`}
+                  >
+                    <IconComp className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                    {item.label}
+                  </button>
+                );
+              })
+            )}
           </nav>
         </div>
 

@@ -40,13 +40,13 @@ export const Users: React.FC<UsersProps> = ({ users, profile }) => {
   const [formPassword, setFormPassword] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formDept, setFormDept] = useState('Production');
-  const [formRole, setFormRole] = useState<UserRole>('Department User');
+  const [formRole, setFormRole] = useState<UserRole>('User');
   const [formStatus, setFormStatus] = useState<'Active' | 'Inactive'>('Active');
 
   if (!profile) return null;
 
-  // Authorization check - only Super Admin or Admin can view/manage
-  const hasManagementAccess = profile.role === 'Super Admin' || profile.role === 'Admin';
+  // Authorization check - only Admin can view/manage
+  const hasManagementAccess = profile.role?.toLowerCase() === 'super admin' || profile.role?.toLowerCase() === 'admin';
   if (!hasManagementAccess) {
     return (
       <div className="p-8 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl flex items-center gap-4 text-red-800 dark:text-red-400">
@@ -61,7 +61,7 @@ export const Users: React.FC<UsersProps> = ({ users, profile }) => {
 
   // Filter lists
   const departments = ['Production', 'Quality Control', 'Warehouse', 'Engineering', 'Assembly'];
-  const rolesList: UserRole[] = ['Department User', 'Technician', 'Production Manager', 'Admin', 'Super Admin'];
+  const rolesList: UserRole[] = ['Admin', 'User'];
 
   // Handle filter & search logic
   const filteredUsers = users.filter((u) => {
@@ -95,7 +95,7 @@ export const Users: React.FC<UsersProps> = ({ users, profile }) => {
     setFormPassword('');
     setFormPhone('');
     setFormDept('Production');
-    setFormRole('Department User');
+    setFormRole('User');
     setFormStatus('Active');
     setErrorMsg('');
     setSuccessMsg('');

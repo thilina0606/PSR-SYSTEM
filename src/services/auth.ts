@@ -62,7 +62,7 @@ export async function registerUser(email: string, password: string, name: string
       throw new Error('An account with this email already exists.');
     }
 
-    const finalRole = users.length === 0 ? 'Super Admin' : role;
+    const finalRole: UserRole = users.length === 0 ? 'Admin' : role;
     const uid = `local-user-${Date.now()}`;
     const profile: UserProfile = {
       uid,
@@ -93,8 +93,8 @@ export async function registerUser(email: string, password: string, name: string
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
 
-  // If first user ever, force role to Super Admin
-  const finalRole = (await isFirstUser()) ? 'Super Admin' : role;
+  // If first user ever, force role to Admin
+  const finalRole: UserRole = (await isFirstUser()) ? 'Admin' : role;
 
   const profile: Partial<UserProfile> = {
     uid: user.uid,
@@ -110,7 +110,7 @@ export async function registerUser(email: string, password: string, name: string
   await createLoginLog(email, finalRole, 'Success');
 
   // Trigger seeding of base settings/departments/machines if user has administrative access
-  if (finalRole === 'Super Admin' || finalRole === 'Admin') {
+  if (finalRole?.toLowerCase() === 'admin') {
     try {
       await seedInitialData();
     } catch (err) {
@@ -211,8 +211,8 @@ export async function loginUser(email: string, password: string): Promise<UserPr
       throw new Error('Your account is currently inactive. Contact your supervisor.');
     }
 
-    // Ensure base DB is seeded if logging in user is Super Admin or Admin
-    if (profile.role === 'Super Admin' || profile.role === 'Admin') {
+    // Ensure base DB is seeded if logging in user is Admin
+    if (profile.role?.toLowerCase() === 'admin') {
       try {
         await seedInitialData();
       } catch (err) {
@@ -454,10 +454,10 @@ export async function ensureFirstSuperAdmin(): Promise<void> {
       const now = new Date().toISOString();
       admin = {
         uid: 'local-super-admin-uid-12345',
-        name: 'Super Admin',
+        name: 'Admin',
         email: adminEmail,
         department: 'Engineering',
-        role: 'Super Admin',
+        role: 'Admin',
         status: 'Active',
         phone: '',
         createdAt: now,
@@ -481,10 +481,10 @@ export async function ensureFirstSuperAdmin(): Promise<void> {
 
     const profile: UserProfile = {
       uid: user.uid,
-      name: 'Super Admin',
+      name: 'Admin',
       email: adminEmail,
       department: 'Engineering',
-      role: 'Super Admin',
+      role: 'Admin',
       status: 'Active',
       phone: '',
       createdAt: new Date().toISOString(),
@@ -492,25 +492,25 @@ export async function ensureFirstSuperAdmin(): Promise<void> {
     };
 
     await secondarySetDoc(secondaryDoc(secondaryDb, 'users', user.uid), profile);
-    console.log('Successfully created and seeded the first Super Admin account!');
+    console.log('Successfully created and seeded the first Admin account!');
   } catch (err: any) {
     if (err.code === 'auth/email-already-in-use') {
-      console.log('First Super Admin account already exists.');
+      console.log('First Admin account already exists.');
     } else if (err.code === 'auth/operation-not-allowed') {
       console.warn('Firebase Email/Password provider is disabled. Enabling local Sandbox fallback mode...');
       localStorage.setItem('firebase_auth_disabled', 'true');
       
-      // Seed first Super Admin locally
+      // Seed first Admin locally
       const users = JSON.parse(localStorage.getItem('local_users') || '[]');
       let admin = users.find((u: any) => u.email.toLowerCase() === adminEmail.toLowerCase());
       if (!admin) {
         const now = new Date().toISOString();
         admin = {
           uid: 'local-super-admin-uid-12345',
-          name: 'Super Admin',
+          name: 'Admin',
           email: adminEmail,
           department: 'Engineering',
-          role: 'Super Admin',
+          role: 'Admin',
           status: 'Active',
           phone: '',
           createdAt: now,
@@ -520,7 +520,7 @@ export async function ensureFirstSuperAdmin(): Promise<void> {
         localStorage.setItem('local_users', JSON.stringify(users));
       }
     } else {
-      console.error('Error ensuring first Super Admin exists:', err);
+      console.error('Error ensuring first Admin exists:', err);
     }
   } finally {
     sessionStorage.setItem('super_admin_checked', 'true');

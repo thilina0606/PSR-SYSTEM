@@ -1,4 +1,4 @@
-export type UserRole = 'Super Admin' | 'Admin' | 'Production Manager' | 'Technician' | 'Department User' | 'User';
+export type UserRole = 'Admin' | 'User';
 
 export interface UserProfile {
   uid: string;
@@ -40,9 +40,15 @@ export interface ServiceRequest {
   createdBy: string; // email or uid of creator
   createdByEmail: string;
   createdByName: string;
-  assignedTo: string; // uid of technician
+  assignedTo: string | null; // uid of technician (can be null)
   assignedToName: string;
   assignedToEmail: string;
+  
+  // Requirements restoration fields
+  requesterUid?: string;
+  requesterName?: string;
+  requesterEmail?: string;
+  currentStage?: string;
   
   // Approval and logs
   hodStatus: 'Pending' | 'Approved' | 'Rejected';
@@ -58,6 +64,30 @@ export interface ServiceRequest {
   technicianComments?: string;
   attachments: string[]; // URLs or Base64
   
+  // Enterprise Workflow Expansion
+  stage?: string;
+  estimatedCompletionDate?: string;
+  completedBy?: string;
+  completedByName?: string;
+  completionRemark?: string;
+  timeline?: { time: string; title: string; description: string; user?: string }[];
+  comments?: {
+    id: string;
+    authorId: string;
+    authorName: string;
+    authorRole: string;
+    text: string;
+    time: string;
+    replies?: {
+      authorName: string;
+      text: string;
+      time: string;
+    }[];
+  }[];
+  feedbackRating?: number;
+  feedbackComment?: string;
+  feedbackSatisfied?: boolean;
+
   createdAt: string;
   updatedAt: string;
   completedAt?: string;

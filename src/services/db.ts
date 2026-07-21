@@ -182,7 +182,7 @@ export async function createUserProfile(uid: string, profile: Partial<UserProfil
     email: profile.email || '',
     phone: profile.phone || '',
     department: profile.department || 'Production',
-    role: profile.role || 'Department User',
+    role: profile.role || 'User',
     status: profile.status || 'Active',
     createdAt: now,
     updatedAt: now,
@@ -357,9 +357,15 @@ export async function submitRequest(request: Partial<ServiceRequest>, user: User
     createdBy: user.uid,
     createdByEmail: user.email,
     createdByName: user.name,
-    assignedTo: '',
+    assignedTo: null,
     assignedToName: '',
     assignedToEmail: '',
+    
+    // Automatically save requested fields
+    requesterUid: user.uid,
+    requesterName: user.name,
+    requesterEmail: user.email,
+    currentStage: 'Submitted',
     
     hodStatus: 'Pending',
     hodComments: '',
@@ -372,6 +378,17 @@ export async function submitRequest(request: Partial<ServiceRequest>, user: User
     prodApprovedAt: '',
     
     attachments: request.attachments || [],
+    stage: 'Submitted',
+    timeline: [
+      {
+        time: now,
+        title: 'Submitted',
+        description: `Submitted by ${user.name}`,
+        user: user.name
+      }
+    ],
+    comments: [],
+    estimatedCompletionDate: '',
     createdAt: now,
     updatedAt: now,
   };
@@ -444,6 +461,96 @@ export async function updateRequestStatus(
 ): Promise<void> {
   const now = new Date().toISOString();
 
+  // Create timeline events and notifications list based on diffs
+  const timelineEntriesToAdd: { time: string; title: string; description: string; user?: string }[] = [];
+  const notificationsToSend: { uid: string; message: string }[] = [];
+
+  if (updates.stage && updates.stage !== oldRequest.stage) {
+    timelineEntriesToAdd.push({
+      time: now,
+      title: 'Stage Changed',
+      description: `Stage updated to: ${updates.stage}`,
+      user: changedBy.name
+    });
+    notificationsToSend.push({
+      uid: oldRequest.createdBy,
+      message: `Your request ${oldRequest.requestNo} stage has been changed to "${updates.stage}"`
+    });
+  }
+
+  if (updates.assignedTo !== undefined && updates.assignedTo !== oldRequest.assignedTo) {
+    timelineEntriesToAdd.push({
+      time: now,
+      title: 'Request Assigned',
+      description: updates.assignedTo ? `Assigned to ${updates.assignedToName || 'Officer'}` : 'Unassigned',
+      user: changedBy.name
+    });
+    if (updates.assignedTo) {
+      notificationsToSend.push({
+        uid: oldRequest.createdBy,
+        message: `Your request ${oldRequest.requestNo} has been assigned to ${updates.assignedToName}`
+      });
+      notificationsToSend.push({
+        uid: updates.assignedTo,
+        message: `You have been assigned request ${oldRequest.requestNo}`
+      });
+    }
+  }
+
+  if (updates.priority && updates.priority !== oldRequest.priority) {
+    timelineEntriesToAdd.push({
+      time: now,
+      title: 'Priority Changed',
+      description: `Priority updated to: ${updates.priority}`,
+      user: changedBy.name
+    });
+    notificationsToSend.push({
+      uid: oldRequest.createdBy,
+      message: `Your request ${oldRequest.requestNo} priority changed to "${updates.priority}"`
+    });
+  }
+
+  if (updates.department && updates.department !== oldRequest.department) {
+    timelineEntriesToAdd.push({
+      time: now,
+      title: 'Department Transferred',
+      description: `Transferred to Department: ${updates.department}`,
+      user: changedBy.name
+    });
+  }
+
+  if (updates.status && updates.status !== oldRequest.status) {
+    timelineEntriesToAdd.push({
+      time: now,
+      title: 'Status Updated',
+      description: `Status changed to ${updates.status}`,
+      user: changedBy.name
+    });
+
+    if (updates.status === 'Completed') {
+      notificationsToSend.push({
+        uid: oldRequest.createdBy,
+        message: `Your request ${oldRequest.requestNo} has been Completed!`
+      });
+    } else if (updates.status === 'Rejected') {
+      notificationsToSend.push({
+        uid: oldRequest.createdBy,
+        message: `Your request ${oldRequest.requestNo} has been Rejected`
+      });
+    } else if (updates.status === 'Approved') {
+      notificationsToSend.push({
+        uid: oldRequest.createdBy,
+        message: `Your request ${oldRequest.requestNo} has been Approved!`
+      });
+    }
+  }
+
+  let finalTimeline = updates.timeline || oldRequest.timeline || [];
+  if (timelineEntriesToAdd.length > 0) {
+    finalTimeline = [...finalTimeline, ...timelineEntriesToAdd];
+  }
+  updates.timeline = finalTimeline;
+
   if (isLocalMode()) {
     const reqs = JSON.parse(localStorage.getItem('local_requests') || '[]');
     const idx = reqs.findIndex((r: any) => r.id === requestId);
@@ -455,7 +562,7 @@ export async function updateRequestStatus(
     // Create audit trail and logs for modified fields
     const fieldsToCheck: (keyof ServiceRequest)[] = [
       'status', 'priority', 'assignedTo', 'assignedToName', 
-      'hodStatus', 'prodStatus', 'description', 'service'
+      'hodStatus', 'prodStatus', 'description', 'service', 'stage'
     ];
 
     for (const field of fieldsToCheck) {
@@ -471,7 +578,7 @@ export async function updateRequestStatus(
     }
 
     // Create general log
-    if (changedBy.role === 'Admin' || changedBy.role === 'Super Admin') {
+    if (changedBy.role?.toLowerCase() === 'admin') {
       await createAdminLog(
         'Update Request',
         oldRequest.requestNo,
@@ -486,23 +593,15 @@ export async function updateRequestStatus(
         changedBy.role,
         'Edit Request',
         oldRequest.requestNo,
-        `Updated request details. Status is now: ${updates.status || oldRequest.status}`
+        `Updated request details. Stage: ${updates.stage || oldRequest.stage || 'N/A'}`
       );
     }
 
-    // Handle specific notification triggers
-    if (updates.status === 'Completed') {
-      await createNotification(
-        oldRequest.createdBy,
-        `Your request ${oldRequest.requestNo} has been Completed!`,
-        oldRequest.requestNo
-      );
-    } else if (updates.assignedTo) {
-      await createNotification(
-        updates.assignedTo,
-        `You have been assigned job ${oldRequest.requestNo}`,
-        oldRequest.requestNo
-      );
+    // Send notifications
+    for (const notif of notificationsToSend) {
+      if (notif.uid) {
+        await createNotification(notif.uid, notif.message, oldRequest.requestNo);
+      }
     }
 
     triggerLocalRequestsListeners();
@@ -519,7 +618,7 @@ export async function updateRequestStatus(
   // Create audit trail and logs for modified fields
   const fieldsToCheck: (keyof ServiceRequest)[] = [
     'status', 'priority', 'assignedTo', 'assignedToName', 
-    'hodStatus', 'prodStatus', 'description', 'service'
+    'hodStatus', 'prodStatus', 'description', 'service', 'stage'
   ];
 
   for (const field of fieldsToCheck) {
@@ -535,7 +634,7 @@ export async function updateRequestStatus(
   }
 
   // Create general log
-  if (changedBy.role === 'Admin' || changedBy.role === 'Super Admin') {
+  if (changedBy.role?.toLowerCase() === 'admin') {
     await createAdminLog(
       'Update Request',
       oldRequest.requestNo,
@@ -550,23 +649,15 @@ export async function updateRequestStatus(
       changedBy.role,
       'Edit Request',
       oldRequest.requestNo,
-      `Updated request details. Status is now: ${updates.status || oldRequest.status}`
+      `Updated request details. Stage: ${updates.stage || oldRequest.stage || 'N/A'}`
     );
   }
 
-  // Handle specific notification triggers
-  if (updates.status === 'Completed') {
-    await createNotification(
-      oldRequest.createdBy,
-      `Your request ${oldRequest.requestNo} has been Completed!`,
-      oldRequest.requestNo
-    );
-  } else if (updates.assignedTo) {
-    await createNotification(
-      updates.assignedTo,
-      `You have been assigned job ${oldRequest.requestNo}`,
-      oldRequest.requestNo
-    );
+  // Send notifications
+  for (const notif of notificationsToSend) {
+    if (notif.uid) {
+      await createNotification(notif.uid, notif.message, oldRequest.requestNo);
+    }
   }
 }
 
@@ -1149,4 +1240,57 @@ export async function seedInitialData(): Promise<void> {
   }
 
   console.log('System seeding completed successfully!');
+}
+
+// ---------------- COMMENTS & REPLIES ----------------
+
+export async function addCommentToRequest(
+  requestId: string,
+  commentText: string,
+  user: UserProfile,
+  oldRequest: ServiceRequest,
+  replyToCommentId?: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  const currentComments = oldRequest.comments ? [...oldRequest.comments] : [];
+
+  if (replyToCommentId) {
+    const commentIdx = currentComments.findIndex(c => c.id === replyToCommentId);
+    if (commentIdx !== -1) {
+      const comment = currentComments[commentIdx];
+      const replies = comment.replies ? [...comment.replies] : [];
+      replies.push({
+        authorName: user.name,
+        text: commentText,
+        time: now,
+      });
+      currentComments[commentIdx] = { ...comment, replies };
+    }
+  } else {
+    currentComments.push({
+      id: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      authorId: user.uid,
+      authorName: user.name,
+      authorRole: user.role,
+      text: commentText,
+      time: now,
+      replies: [],
+    });
+  }
+
+  const updates: Partial<ServiceRequest> = {
+    comments: currentComments,
+  };
+
+  // We should send a notification
+  const recipientUid = oldRequest.createdBy === user.uid ? (oldRequest.assignedTo || '') : oldRequest.createdBy;
+  if (recipientUid) {
+    await createNotification(
+      recipientUid,
+      `New comment by ${user.name} on request ${oldRequest.requestNo}`,
+      oldRequest.requestNo
+    );
+  }
+
+  await updateRequestStatus(requestId, updates, user, oldRequest);
 }

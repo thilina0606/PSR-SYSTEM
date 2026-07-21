@@ -65,7 +65,7 @@ export const CreateRequest: React.FC<CreateRequestProps> = ({ profile, onSuccess
     e.preventDefault();
     if (!profile) return;
 
-    if (profile.role !== 'User') {
+    if (profile.role?.toLowerCase() !== 'user') {
       setFormError('Only users with the role "User" are authorized to create service requests.');
       return;
     }

@@ -62,9 +62,10 @@ export default function App() {
 
       if (userProfile) {
         // Set the initial default view based on Role setting
-        if (userProfile.role === 'Super Admin' || userProfile.role === 'Admin' || userProfile.role === 'Production Manager') {
+        const roleLower = userProfile.role?.toLowerCase() || '';
+        if (roleLower === 'super admin' || roleLower === 'admin') {
           setCurrentTab('dashboard');
-        } else if (userProfile.role === 'User') {
+        } else if (roleLower === 'user') {
           setCurrentTab('create-request');
         } else {
           setCurrentTab('requests');
@@ -79,28 +80,19 @@ export default function App() {
     if (!profile) return;
     
     const isTabAllowed = (tab: string, role: string): boolean => {
-      if (role === 'Super Admin' || role === 'Admin') return true;
-      switch (tab) {
-        case 'dashboard':
-          return role === 'Production Manager';
-        case 'create-request':
-          return role === 'User';
-        case 'requests':
-          return true;
-        case 'departments':
-          return role === 'Production Manager';
-        case 'reports':
-          return role === 'Production Manager';
-        case 'profile':
-          return true;
-        default:
-          return false;
+      const roleLower = role?.toLowerCase() || '';
+      if (roleLower === 'super admin' || roleLower === 'admin') {
+        return ['dashboard', 'requests', 'users', 'reports', 'profile'].includes(tab);
       }
+      if (roleLower === 'user') {
+        return ['dashboard', 'create-request', 'requests', 'profile'].includes(tab);
+      }
+      return false;
     };
 
     if (!isTabAllowed(currentTab, profile.role)) {
       console.warn(`Access denied to tab '${currentTab}' for role '${profile.role}'. Redirecting...`);
-      if (profile.role === 'User') {
+      if (profile.role?.toLowerCase() === 'user') {
         setCurrentTab('create-request');
       } else {
         setCurrentTab('requests');
@@ -138,7 +130,8 @@ export default function App() {
 
     // 3. Subscribe to recent Admin logs
     let unsubAdminLogs = () => {};
-    if (profile.role === 'Super Admin' || profile.role === 'Admin') {
+    const roleLower = profile.role?.toLowerCase() || '';
+    if (roleLower === 'super admin' || roleLower === 'admin') {
       unsubAdminLogs = subscribeToAdminLogs((data) => {
         setAdminLogs(data);
       });
@@ -146,7 +139,7 @@ export default function App() {
 
     // 4. Subscribe to recent User activity logs
     let unsubUserLogs = () => {};
-    if (profile.role === 'Super Admin' || profile.role === 'Admin' || profile.role === 'Production Manager') {
+    if (roleLower === 'super admin' || roleLower === 'admin') {
       unsubUserLogs = subscribeToUserLogs((data) => {
         setUserLogs(data);
       });
@@ -220,6 +213,7 @@ export default function App() {
               adminLogs={adminLogs}
               userLogs={userLogs}
               setTab={setCurrentTab}
+              profile={profile}
             />
           )}
 
@@ -228,6 +222,7 @@ export default function App() {
               requests={requests}
               profile={profile}
               users={usersList}
+              setTab={setCurrentTab}
             />
           )}
 
